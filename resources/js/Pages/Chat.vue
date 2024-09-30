@@ -1,19 +1,21 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import axios from 'axios';
+import store from '@/store';
 
 const users = ref([]);
 const messages = ref([]);
+const userActive = ref(null);
+const message = ref();
+
+const user = computed(() => {
+    return store.state.user;
+});
+
 
 onMounted(() => {
-    // const token = localStorage.getItem('token');
-
-    axios.get('/api/users', {
-        // headers: {
-        //     'Authorization': `Bearer ${token}`
-        // }
-    })
+    axios.get('/api/users')
     .then(response => {
         users.value = response.data.users
     })
@@ -22,15 +24,54 @@ onMounted(() => {
     });
 });
 
-const loadMessages = (userId) => {
-    axios.get(`/api/messages/${userId}`)
+const scrollToBottom = () => {
+    if (messages.value.length) {
+        const lastMessage = document.querySelector('.message:last-child');
+        if (lastMessage) {
+            lastMessage.scrollIntoView();
+        }
+    }
+};
+
+const loadMessages = async (userId) => {
+    await axios.get(`/api/users/${userId}`)
+    .then(response => {
+        userActive.value = response.data.user
+    })
+    .catch(error => {
+        console.error('Erro ao buscar usuário:', error);
+    });
+
+    await axios.get(`/api/messages/${userId}`)
     .then(response => {
         messages.value = response.data.messages
     })
-    .catch(error => {
-        console.error('Erro ao buscar mensagens do usuário:', error);
-    });
+    
+    scrollToBottom();
 }
+
+const sendMessage = async () => {
+    await axios.post(`/api/messages/store`, {
+        content: message.value, 
+        to: userActive.value.id 
+    })
+    .then(response => {
+        messages.value.push({
+            from: user.value.id,
+            to: userActive.value.id,
+            content: message.value,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        });  
+        message.value = '';
+    })
+    .catch(error => {
+        console.error('Erro ao enviar a mensagem:', error);
+    });
+
+    scrollToBottom();
+};
+
 
 </script>
 
@@ -50,6 +91,7 @@ const loadMessages = (userId) => {
                             <li 
                                 v-for="user in users" :key="user.id"
                                 @click="() => {loadMessages(user.id)}"
+                                :class="(userActive && userActive.id === user.id) ? 'bg-gray-200 bg-opacity-50' : ''"
                                 class="p-6 text-lg text-gray-600 leading-7 font-semibold border-b border-gray-200 hover:bg-opacity-50 hover:bg-gray-200 hover:cursor-pointer">
                                 <p class="flex items-center justify-between">
                                     {{ user.name }}
@@ -63,7 +105,7 @@ const loadMessages = (userId) => {
                             <div
                                 v-for="message in messages" :key="message.id" 
                                 :class="(message.from === $attrs.auth.user.id ? 'text-right' : '')"
-                                class="w-full mb-3">
+                                class="w-full mb-3 message">
                                 <p 
                                     :class="(message.from === $attrs.auth.user.id ? 'messageFromMe' : '')"
                                     class="inline-block p-2 rounded-md bg-gray-200 max-w-[75%]">
@@ -73,10 +115,10 @@ const loadMessages = (userId) => {
                             </div>
                         </div>
 
-                        <div class="w-full bg-gray-200 bg-opacity-25 p-6">
-                            <form >
+                        <div v-if="userActive" class="w-full bg-gray-200 bg-opacity-25 p-6">
+                            <form v-on:submit.prevent="sendMessage">
                                 <div class="flex">
-                                    <input type="text" class="flex-1 px-4 py-2 text-sm focus:outline-none" autocomplete="off"/>
+                                    <input v-model="message" type="text" class="flex-1 px-4 py-2 text-sm focus:outline-none" autocomplete="off"/>
                                     <button type="submit" class=" bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2">
                                         Enviar
                                     </button>

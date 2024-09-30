@@ -37,4 +37,20 @@ class MessageController extends Controller
             'messages' => $messages
         ], Response::HTTP_OK);
     }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'content' => 'required|string',
+            'to' => 'required|exists:users,id', 
+        ]);
+    
+        $message = new Message();
+        $message->from = Auth::user()->id;
+        $message->to = $request->input('to');
+        $message->content = strip_tags($request->input('content'));
+        $message->save();
+    
+        return response()->json(['message' => $message], 201);
+    }
 }

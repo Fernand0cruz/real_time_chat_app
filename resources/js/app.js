@@ -6,8 +6,11 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import moment from 'moment';
+import store from './store';
 
 moment.locale("pt-br");
+
+store.dispatch('userStateAction');
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -19,7 +22,6 @@ createInertiaApp({
             .use(plugin)
             .use(ZiggyVue);
 
-        // Register a global method for date formatting
         app.config.globalProperties.$formatDate = (value) => {
             if (value) {
                 return moment(value).format('DD/MM/YYYY HH:mm');
@@ -27,7 +29,6 @@ createInertiaApp({
             return '';
         };
 
-        // Mount the app
         app.mount(el);
     },
     progress: {
